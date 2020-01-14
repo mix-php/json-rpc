@@ -1,11 +1,11 @@
-## Mix Sync Invoke
+## Mix JSON-RPC
 
 ...
 
 ## Usage
 
 ```
-composer require mix/sync-invoke
+composer require mix/json-rpc
 ```
 
 ## License

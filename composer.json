@@ -1,6 +1,6 @@
 {
   "name": "mix/json-rpc",
-  "description": "Mix JSON RPC http://www.mixphp.cn",
+  "description": "Mix JSON-RPC http://www.mixphp.cn",
   "type": "framework",
   "keywords": [
     "mix",
