@@ -24,12 +24,12 @@ class JsonRpcHelper
     public static function parseRequests(string $payload)
     {
         $payload = static::decode($payload);
-        if (!$payload) {
+        if ($payload === false) {
             throw new ParseException('Parse requests failed.');
         }
         $requests = [];
         $single   = false;
-        if (count($payload) == count($payload, true)) {
+        if (!empty($payload) && !(isset($payload[0]) && is_array($payload[0]))) {
             $single  = true;
             $payload = [$payload];
         }
@@ -72,11 +72,11 @@ class JsonRpcHelper
     public static function parseResponses(string $payload)
     {
         $payload = static::decode($payload);
-        if (!$payload) {
+        if ($payload === false) {
             throw new ParseException('Parse responses failed.');
         }
         $responses = [];
-        if (count($payload) == count($payload, true)) {
+        if (!empty($payload) && !(isset($payload[0]) && is_array($payload[0]))) {
             $payload = [$payload];
         }
         foreach ($payload as $value) {
@@ -102,8 +102,7 @@ class JsonRpcHelper
     {
         $json = [];
         foreach ($responses as $response) {
-            $array  = (array)$response;
-            $json[] = array_filter($array);
+            $json[] = static::filter($response);
         }
         if ($single) {
             $jsonStr = static::encode(array_pop($json)) . Constants::EOF;
@@ -111,6 +110,23 @@ class JsonRpcHelper
             $jsonStr = static::encode($json) . Constants::EOF;
         }
         $sendChan->push($jsonStr);
+    }
+
+    /**
+     * 过滤
+     * @param Response $response
+     * @return array
+     */
+    public static function filter(Response $response)
+    {
+        $array = [];
+        foreach ($response as $key => $value) {
+            if ($key != 'id' && is_null($value)) {
+                continue;
+            }
+            $array[$key] = $value;
+        }
+        return $array;
     }
 
     /**

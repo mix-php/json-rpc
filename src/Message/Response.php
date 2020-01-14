@@ -15,6 +15,11 @@ class Response
     public $jsonrpc;
 
     /**
+     * @var array
+     */
+    public $result;
+
+    /**
      * @var null|Error
      */
     public $error;
@@ -28,11 +33,6 @@ class Response
      * @var array
      */
     public $params;
-
-    /**
-     * @var array
-     */
-    public $result;
 
     /**
      * @var int|null

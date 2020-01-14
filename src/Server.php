@@ -79,7 +79,9 @@ class Server
             'open_eof_check' => true,
             'package_eof'    => Constants::EOF,
         ]);
-        $server->handle([$this, 'handle']);
+        $server->handle(function (Connection $conn) {
+            $this->handle($conn);
+        });
         $server->start();
     }
 
@@ -149,18 +151,18 @@ class Server
         foreach ($requests as $request) {
             // 验证
             if (!JsonRpcHelper::validRequest($request)) {
-                $response[] = ResponseFactory::createError(-32600, 'Invalid Request', $request->id);
+                $responses[] = ResponseFactory::createError(-32600, 'Invalid Request', $request->id);
                 continue;
             }
             if (!isset($this->services[$request->method])) {
-                $response[] = ResponseFactory::createError(-32601, 'Method not found', $request->id);
+                $responses[] = ResponseFactory::createError(-32601, 'Method not found', $request->id);
                 continue;
             }
             // 执行
             try {
                 $responses[] = call_user_func($this->services[$request->method], $request);
             } catch (\Throwable $ex) {
-                $response[] = ResponseFactory::createError($ex->getCode(), $ex->getMessage(), $request->id);
+                $responses[] = ResponseFactory::createError($ex->getCode(), $ex->getMessage(), $request->id);
             }
         }
         JsonRpcHelper::send($sendChan, $single, ...$responses);

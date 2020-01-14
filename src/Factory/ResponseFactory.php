@@ -15,10 +15,10 @@ class ResponseFactory
     /**
      * Create result response
      * @param array $result
-     * @param int $id
+     * @param $id
      * @return Response
      */
-    public static function createResult(array $result, int $id)
+    public static function createResult(array $result, $id)
     {
         $response          = new Response();
         $response->jsonrpc = '2.0';
@@ -31,10 +31,10 @@ class ResponseFactory
      * Create error response
      * @param int $code
      * @param string $message
-     * @param int $id
+     * @param $id
      * @return Response
      */
-    public static function createError(int $code, string $message, int $id)
+    public static function createError(int $code, string $message, $id)
     {
         $error             = new Error();
         $error->code       = $code;
