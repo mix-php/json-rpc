@@ -1,6 +1,6 @@
 ## Mix JSON-RPC
 
-通用的 JSON-RPC 库，所有 Swoole 环境都可使用。
+通用的 JSON-RPC 库，所有 Swoole 环境都可使用，支持 TCP、HTTP 两种协议。
 
 ## Usage
 
@@ -33,6 +33,13 @@ $server  = new \Mix\JsonRpc\Server('127.0.0.1', 9234);
 $service = new Calculator();
 $server->register($service);
 $server->start();
+```
+
+扩展 HTTP 支持
+
+```
+$http = new \Mix\Http\Server\Server('127.0.0.1', 9235);
+$http->start($server);
 ```
 
 - Client
