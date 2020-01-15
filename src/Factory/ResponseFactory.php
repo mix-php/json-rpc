@@ -18,7 +18,7 @@ class ResponseFactory
      * @param $id
      * @return Response
      */
-    public static function createResult(array $result, $id)
+    public function createResultResponse(array $result, $id)
     {
         $response          = new Response();
         $response->jsonrpc = '2.0';
@@ -34,7 +34,7 @@ class ResponseFactory
      * @param $id
      * @return Response
      */
-    public static function createError(int $code, string $message, $id)
+    public function createErrorResponse(int $code, string $message, $id)
     {
         $error             = new Error();
         $error->code       = $code;
@@ -52,7 +52,7 @@ class ResponseFactory
      * @param array $params
      * @return Response
      */
-    public static function createNotification(string $method, array $params)
+    public function createNotificationResponse(string $method, array $params)
     {
         $response          = new Response();
         $response->jsonrpc = '2.0';

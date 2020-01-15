@@ -44,7 +44,7 @@ $client = new \Mix\JsonRpc\Client([
     'connection' => new \Mix\JsonRpc\Connection('127.0.0.1', 9234),
 ]);
 
-$request = \Mix\JsonRpc\Factory\RequestFactory::create('Calculator.sum', [1, 3], 100001)
+$request = (new \Mix\JsonRpc\Factory\RequestFactory)->createRequest('Calculator.sum', [1, 3], 100001)
 $response = $client->call($request);
 var_dump($response);
 ```
@@ -56,8 +56,8 @@ $client = new \Mix\JsonRpc\Client([
     'connection' => new \Mix\JsonRpc\Connection('127.0.0.1', 9234),
 ]);
 
-$requests[] = \Mix\JsonRpc\Factory\RequestFactory::create('Calculator.sum', [1, 3], 100001)
-$requests[] = \Mix\JsonRpc\Factory\RequestFactory::create('Calculator.sum', [2, 3], 100002)
+$requests[] = (new \Mix\JsonRpc\Factory\RequestFactory)->createRequest('Calculator.sum', [1, 3], 100001)
+$requests[] = (new \Mix\JsonRpc\Factory\RequestFactory)->createRequest('Calculator.sum', [2, 3], 100002)
 $responses = $client->callMultiple(...$requests);
 var_dump($responses);
 ```

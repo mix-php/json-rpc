@@ -93,12 +93,12 @@ class JsonRpcHelper
     }
 
     /**
-     * Send
-     * @param Channel $sendChan
+     * 生成响应内容
      * @param bool $single
      * @param Response ...$responses
+     * @return string
      */
-    public static function send(Channel $sendChan, bool $single, Response ...$responses)
+    public static function content(bool $single, Response ...$responses)
     {
         $json = [];
         foreach ($responses as $response) {
@@ -109,7 +109,7 @@ class JsonRpcHelper
         } else {
             $jsonStr = static::encode($json) . Constants::EOF;
         }
-        $sendChan->push($jsonStr);
+        return $jsonStr;
     }
 
     /**

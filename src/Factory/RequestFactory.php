@@ -18,7 +18,7 @@ class RequestFactory
      * @param $id
      * @return Request
      */
-    public static function create(string $method, array $params, $id)
+    public function createRequest(string $method, array $params, $id)
     {
         $request          = new Request();
         $request->jsonrpc = '2.0';

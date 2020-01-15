@@ -3,9 +3,13 @@
 namespace Mix\JsonRpc;
 
 use Mix\Concurrent\Sync\WaitGroup;
+use Mix\Http\Message\Factory\StreamFactory;
+use Mix\Http\Message\ServerRequest;
+use Mix\Http\Server\HandlerInterface;
 use Mix\JsonRpc\Factory\ResponseFactory;
 use Mix\JsonRpc\Helper\JsonRpcHelper;
 use Mix\JsonRpc\Message\Request;
+use Mix\JsonRpc\Message\Response;
 use Mix\Server\Connection;
 use Mix\Server\Exception\ReceiveException;
 use Swoole\Coroutine\Channel;
@@ -14,7 +18,7 @@ use Swoole\Coroutine\Channel;
  * Class Server
  * @package Mix\JsonRpc
  */
-class Server
+class Server implements HandlerInterface
 {
 
     /**
@@ -81,7 +85,7 @@ class Server
             'package_eof'    => Constants::EOF,
         ]);
         $server->handle(function (Connection $conn) {
-            $this->handle($conn);
+            $this->handleTCP($conn);
         });
         $server->start();
     }
@@ -91,7 +95,7 @@ class Server
      * @param Connection $conn
      * @throws \Throwable
      */
-    protected function handle(Connection $conn)
+    protected function handleTCP(Connection $conn)
     {
         // 消息发送
         $sendChan = new Channel();
@@ -116,7 +120,7 @@ class Server
         while (true) {
             try {
                 $data = $conn->recv();
-                $this->call($sendChan, $data);
+                $this->callTCP($sendChan, $data);
             } catch (\Throwable $e) {
                 // 忽略服务器主动断开连接异常
                 if ($e instanceof ReceiveException) {
@@ -129,11 +133,11 @@ class Server
     }
 
     /**
-     * 执行功能
+     * 调用TCP
      * @param Channel $sendChan
-     * @param string $data
+     * @param string $content
      */
-    protected function call(Channel $sendChan, string $data)
+    protected function callTCP(Channel $sendChan, string $content)
     {
         /**
          * 解析
@@ -141,13 +145,58 @@ class Server
          * @var bool $single
          */
         try {
-            list($single, $requests) = JsonRpcHelper::parseRequests($data);
+            list($single, $requests) = JsonRpcHelper::parseRequests($content);
         } catch (\Throwable $ex) {
-            $response = ResponseFactory::createError(-32700, 'Parse error', null);
-            JsonRpcHelper::send($sendChan, true, $response);
+            $response = (new ResponseFactory)->createErrorResponse(-32700, 'Parse error', null);
+            $sendChan->push(JsonRpcHelper::content(true, $response));
             return;
         }
         // 处理
+        $responses = $this->process(...$requests);
+        // 发送
+        $sendChan->push(JsonRpcHelper::content($single, ...$responses));
+    }
+
+    /**
+     * 调用HTTP
+     * @param \Mix\Http\Message\Response $httpResponse
+     * @param string $content
+     */
+    protected function callHTTP(\Mix\Http\Message\Response $httpResponse, string $content)
+    {
+        /**
+         * 解析
+         * @var Request[] $requests
+         * @var bool $single
+         */
+        try {
+            list($single, $requests) = JsonRpcHelper::parseRequests($content);
+        } catch (\Throwable $ex) {
+            $response = (new ResponseFactory)->createErrorResponse(-32700, 'Parse error', null);
+            $body     = (new StreamFactory)->createStream(JsonRpcHelper::content(true, $response));
+            $httpResponse->withBody($body)
+                ->withContentType('application/json')
+                ->withStatus(200)
+                ->end();
+            return;
+        }
+        // 处理
+        $responses = $this->process(...$requests);
+        // 发送
+        $body = (new StreamFactory)->createStream(JsonRpcHelper::content($single, ...$responses));
+        $httpResponse->withBody($body)
+            ->withContentType('application/json')
+            ->withStatus(200)
+            ->end();
+    }
+
+    /**
+     * 处理
+     * @param Request ...$requests
+     * @return array
+     */
+    protected function process(Request ...$requests)
+    {
         $waitGroup = WaitGroup::new();
         $waitGroup->add(count($requests));
         $responses = [];
@@ -158,25 +207,41 @@ class Server
                 });
                 // 验证
                 if (!JsonRpcHelper::validRequest($request)) {
-                    $responses[] = ResponseFactory::createError(-32600, 'Invalid Request', $request->id);
+                    $responses[] = (new ResponseFactory)->createErrorResponse(-32600, 'Invalid Request', $request->id);
                     return;
                 }
                 if (!isset($this->services[$request->method])) {
-                    $responses[] = ResponseFactory::createError(-32601, 'Method not found', $request->id);
+                    $responses[] = (new ResponseFactory)->createErrorResponse(-32601, 'Method not found', $request->id);
                     return;
                 }
                 // 执行
                 try {
                     $result      = call_user_func($this->services[$request->method], ...$request->params);
                     $result      = is_scalar($result) ? [$result] : $result;
-                    $responses[] = ResponseFactory::createResult($result, $request->id);
+                    $responses[] = (new ResponseFactory)->createResultResponse($result, $request->id);
                 } catch (\Throwable $ex) {
-                    $responses[] = ResponseFactory::createError($ex->getCode(), $ex->getMessage(), $request->id);
+                    $responses[] = (new ResponseFactory)->createErrorResponse($ex->getCode(), $ex->getMessage(), $request->id);
                 }
             });
         }
         $waitGroup->wait();
-        JsonRpcHelper::send($sendChan, $single, ...$responses);
+        return $responses;
+    }
+
+    /**
+     * Handle HTTP
+     * @param ServerRequest $request
+     * @param \Mix\Http\Message\Response $response
+     */
+    public function HandleHTTP(ServerRequest $request, \Mix\Http\Message\Response $response)
+    {
+        $contentType = $request->getHeaderLine('Content-Type');
+        if (strpos($contentType, 'application/json') === false) {
+            $response->withStatus(500)->end();
+            return;
+        }
+        $content = $request->getBody()->getContents();
+        $this->callHTTP($response, $content);
     }
 
     /**
