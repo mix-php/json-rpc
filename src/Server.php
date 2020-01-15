@@ -62,7 +62,7 @@ class Server
      */
     public function register(object $service)
     {
-        $name    = basename(get_class($service));
+        $name    = str_replace('/', '\\', basename(str_replace('\\', '/', get_class($service))));
         $methods = get_class_methods($service);
         foreach ($methods as $method) {
             $this->services[sprintf('%s.%s', $name, $method)] = [$service, $method];
