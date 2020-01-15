@@ -26,10 +26,25 @@ final class ClientTest extends TestCase
                 'connection' => new \Mix\JsonRpc\Connection('127.0.0.1', 9234),
             ]);
 
-            $response = $client->call(\Mix\JsonRpc\Factory\RequestFactory::create('Calculator.sum', [1, 3], 0));
+            // 方法不存在
+            $response = $client->call(\Mix\JsonRpc\Factory\RequestFactory::create('None.None', [1, 3], 0));
+            var_dump(json_encode($response));
+            $_this->assertNotNull($response->error);
+
+            // 单个返回值
+            $response = $client->call(\Mix\JsonRpc\Factory\RequestFactory::create('Calculator.Sum', [1, 3], 0));
+            var_dump(json_encode($response));
             $_this->assertEquals($response->result[0], 4);
 
-            $responses = $client->callMultiple(\Mix\JsonRpc\Factory\RequestFactory::create('Calculator.sum', [1, 3], 0), \Mix\JsonRpc\Factory\RequestFactory::create('Calculator.sum', [2, 3], 0));
+            // 多个返回值
+            $response = $client->call(\Mix\JsonRpc\Factory\RequestFactory::create('Calculator.Plus', [1, 3], 0));
+            var_dump(json_encode($response));
+            $_this->assertEquals($response->result[0], 2);
+            $_this->assertEquals($response->result[1], 4);
+
+            // 批量调用
+            $responses = $client->callMultiple(\Mix\JsonRpc\Factory\RequestFactory::create('Calculator.Sum', [1, 3], 10001), \Mix\JsonRpc\Factory\RequestFactory::create('Calculator.Sum', [2, 3], 10002));
+            var_dump(json_encode($responses));
             $_this->assertEquals($responses[0]->result[0], 4);
             $_this->assertEquals($responses[1]->result[0], 5);
 
@@ -42,9 +57,13 @@ final class ClientTest extends TestCase
 
 class Calculator
 {
-    public function sum(\Mix\JsonRpc\Message\Request $request): \Mix\JsonRpc\Message\Response
+    public function Sum(int $a, int $b): int
     {
-        $sum = array_sum($request->params);
-        return \Mix\JsonRpc\Factory\ResponseFactory::createResult([$sum], $request->id);
+        return array_sum([$a, $b]);
+    }
+
+    public function Plus(int $a, int $b): array
+    {
+        return [++$a, ++$b];
     }
 }

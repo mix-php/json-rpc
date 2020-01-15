@@ -2,6 +2,7 @@
 
 namespace Mix\JsonRpc;
 
+use Mix\Concurrent\Sync\WaitGroup;
 use Mix\JsonRpc\Factory\ResponseFactory;
 use Mix\JsonRpc\Helper\JsonRpcHelper;
 use Mix\JsonRpc\Message\Request;
@@ -147,24 +148,34 @@ class Server
             return;
         }
         // 处理
+        $waitGroup = WaitGroup::new();
+        $waitGroup->add(count($requests));
         $responses = [];
         foreach ($requests as $request) {
-            // 验证
-            if (!JsonRpcHelper::validRequest($request)) {
-                $responses[] = ResponseFactory::createError(-32600, 'Invalid Request', $request->id);
-                continue;
-            }
-            if (!isset($this->services[$request->method])) {
-                $responses[] = ResponseFactory::createError(-32601, 'Method not found', $request->id);
-                continue;
-            }
-            // 执行
-            try {
-                $responses[] = call_user_func($this->services[$request->method], $request);
-            } catch (\Throwable $ex) {
-                $responses[] = ResponseFactory::createError($ex->getCode(), $ex->getMessage(), $request->id);
-            }
+            xgo(function () use ($request, &$responses, $waitGroup) {
+                xdefer(function () use ($waitGroup) {
+                    $waitGroup->done();
+                });
+                // 验证
+                if (!JsonRpcHelper::validRequest($request)) {
+                    $responses[] = ResponseFactory::createError(-32600, 'Invalid Request', $request->id);
+                    return;
+                }
+                if (!isset($this->services[$request->method])) {
+                    $responses[] = ResponseFactory::createError(-32601, 'Method not found', $request->id);
+                    return;
+                }
+                // 执行
+                try {
+                    $result      = call_user_func($this->services[$request->method], ...$request->params);
+                    $result      = is_scalar($result) ? [$result] : $result;
+                    $responses[] = ResponseFactory::createResult($result, $request->id);
+                } catch (\Throwable $ex) {
+                    $responses[] = ResponseFactory::createError($ex->getCode(), $ex->getMessage(), $request->id);
+                }
+            });
         }
+        $waitGroup->wait();
         JsonRpcHelper::send($sendChan, $single, ...$responses);
     }
 

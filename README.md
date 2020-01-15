@@ -17,10 +17,9 @@ composer require mix/json-rpc
 ```
 class Calculator
 {
-    public function sum(\Mix\JsonRpc\Message\Request $request): \Mix\JsonRpc\Message\Response
+    public function Sum(int $a, int $b): int
     {
-        $sum = array_sum($request->params);
-        return \Mix\JsonRpc\Factory\ResponseFactory::createResult([$sum], $request->id);
+        return array_sum([$a, $b]);
     }
 }
 ```
