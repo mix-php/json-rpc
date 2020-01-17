@@ -4,6 +4,7 @@ namespace Mix\JsonRpc\Helper;
 
 use Mix\JsonRpc\Constants;
 use Mix\JsonRpc\Exception\ParseException;
+use Mix\JsonRpc\Message\Error;
 use Mix\JsonRpc\Message\Request;
 use Mix\JsonRpc\Message\Response;
 use Swoole\Coroutine\Channel;
@@ -85,9 +86,17 @@ class JsonRpcHelper
             $response->id      = $value['id'] ?? null;
             $response->method  = $value['method'] ?? null;
             $response->params  = $value['params'] ?? null;
-            $response->error   = $value['error'] ?? null;
-            $response->result  = $value['result'] ?? null;
-            $responses[]       = $response;
+            $error             = $value['error'] ?? null;
+            if (!is_null($error)) {
+                $code           = $error['code'] ?? 0;
+                $message        = is_string($error) ? $error : ($error['message'] ?? '');
+                $error          = new Error();
+                $error->code    = $code;
+                $error->message = $message;
+            }
+            $response->error  = $error;
+            $response->result = $value['result'] ?? null;
+            $responses[]      = $response;
         }
         return $responses;
     }
